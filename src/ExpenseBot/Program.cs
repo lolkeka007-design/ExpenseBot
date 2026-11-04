@@ -5,28 +5,36 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-// Настройки берём из переменных окружения, чтобы токен не попал в репозиторий.
+// Settings come from environment variables, so the token never ends up in the repository.
 var token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
 if (string.IsNullOrWhiteSpace(token))
 {
-    Console.Error.WriteLine("Задай токен бота: export TELEGRAM_BOT_TOKEN=\"123456:ABC...\" (получить его можно у @BotFather).");
+    Console.Error.WriteLine("Set the bot token first: export TELEGRAM_BOT_TOKEN=\"123456:ABC...\" (get it from @BotFather).");
     return 1;
 }
 
 var databasePath = Environment.GetEnvironmentVariable("DB_PATH") ?? "expenses.db";
-var currency = Environment.GetEnvironmentVariable("CURRENCY") ?? "₾";
+var currency = Environment.GetEnvironmentVariable("CURRENCY") ?? "USD";
+
+var languageCode = Environment.GetEnvironmentVariable("BOT_LANGUAGE");
+var messages = Localization.Get(languageCode);
+if (messages is null)
+{
+    Console.Error.WriteLine("BOT_LANGUAGE must be \"en\" or \"ru\".");
+    return 1;
+}
 
 var offsetText = Environment.GetEnvironmentVariable("UTC_OFFSET_HOURS");
-var offsetHours = 4.0; // Тбилиси
+var offsetHours = 0.0;
 if (!string.IsNullOrWhiteSpace(offsetText) &&
     !double.TryParse(offsetText, NumberStyles.Float, CultureInfo.InvariantCulture, out offsetHours))
 {
-    Console.Error.WriteLine("UTC_OFFSET_HOURS должен быть числом, например 4 или -5.");
+    Console.Error.WriteLine("UTC_OFFSET_HOURS must be a number, for example 4 or -5.");
     return 1;
 }
 
 var store = new SqliteExpenseStore(databasePath);
-var processor = new CommandProcessor(store, currency, TimeSpan.FromHours(offsetHours), () => DateTime.UtcNow);
+var processor = new CommandProcessor(store, messages, currency, TimeSpan.FromHours(offsetHours), () => DateTime.UtcNow);
 var bot = new TelegramBotClient(token);
 
 using var cts = new CancellationTokenSource();
@@ -43,7 +51,7 @@ bot.StartReceiving(
     cancellationToken: cts.Token);
 
 var me = await bot.GetMe(cts.Token);
-Console.WriteLine($"Бот @{me.Username} запущен. Остановить: Ctrl+C.");
+Console.WriteLine($"Bot @{me.Username} is running. Press Ctrl+C to stop.");
 
 try
 {
@@ -51,7 +59,7 @@ try
 }
 catch (OperationCanceledException)
 {
-    Console.WriteLine("Остановлен.");
+    Console.WriteLine("Stopped.");
 }
 
 return 0;

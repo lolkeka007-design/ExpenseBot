@@ -3,25 +3,16 @@ using System.Text;
 
 namespace ExpenseBot;
 
-/// <summary>Превращает данные в тексты ответов бота.</summary>
+/// <summary>Turns data into the text of the bot's replies.</summary>
 public static class Formatter
 {
-    private static readonly string[] Months =
-    {
-        "январь", "февраль", "март", "апрель", "май", "июнь",
-        "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
-    };
-
     public static string Money(decimal amount, string currency) =>
         $"{amount.ToString("0.00", CultureInfo.InvariantCulture)} {currency}";
 
-    public static string MonthTitle(DateTime localDate) =>
-        $"{Months[localDate.Month - 1]} {localDate.Year}";
-
-    public static string Totals(string title, IReadOnlyList<CategoryTotal> totals, string currency)
+    public static string Totals(string title, IReadOnlyList<CategoryTotal> totals, string currency, IMessages messages)
     {
         if (totals.Count == 0)
-            return $"{title}\n\nРасходов пока нет.";
+            return $"{title}\n\n{messages.NoExpensesYet}";
 
         var sb = new StringBuilder();
         sb.Append(title).Append("\n\n");
@@ -29,16 +20,16 @@ public static class Formatter
         foreach (var total in totals)
             sb.Append($"{total.Category} — {Money(total.Total, currency)} ({total.Count})\n");
 
-        sb.Append($"\nИтого: {Money(totals.Sum(t => t.Total), currency)}");
+        sb.Append($"\n{messages.Total}: {Money(totals.Sum(t => t.Total), currency)}");
         return sb.ToString();
     }
 
-    public static string LastList(IReadOnlyList<Expense> expenses, string currency, TimeSpan utcOffset)
+    public static string LastList(IReadOnlyList<Expense> expenses, string currency, TimeSpan utcOffset, IMessages messages)
     {
         if (expenses.Count == 0)
-            return "Записей пока нет.";
+            return messages.NoEntriesYet;
 
-        var sb = new StringBuilder("Последние траты:\n\n");
+        var sb = new StringBuilder(messages.LastTitle).Append("\n\n");
         for (var i = 0; i < expenses.Count; i++)
         {
             var expense = expenses[i];
